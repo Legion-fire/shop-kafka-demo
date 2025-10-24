@@ -1,4 +1,4 @@
-package com.example.order.service;
+package com.example.orders.service;
 
 import com.example.common.model.OrderEvent;
 import com.example.common.model.OrderStatus;

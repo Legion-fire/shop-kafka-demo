@@ -1,4 +1,4 @@
-package com.example.order.config;
+package com.example.orders.config;
 
 import com.example.common.Topics;
 import org.apache.kafka.clients.admin.NewTopic;
