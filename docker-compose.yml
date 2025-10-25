@@ -1,30 +1,84 @@
+version: "3.8"
 services:
   kafka:
     image: apache/kafka:3.7.0
     container_name: kafka
-    hostname: kafka
-    ports:
-      - "29092:29092"  # доступ с хоста
     environment:
-      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"   # пример, подставьте свой
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_PROCESS_ROLES: controller,broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:9093,EXTERNAL://:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_MESSAGE_MAX_BYTES: 20971520
+      KAFKA_CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "1"
+      KAFKA_NUM_PARTITIONS: "6"
+    ports:
+      - "19092:19092"
 
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-    volumes:
-      - kafka_data:/var/lib/kafka/data
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      - kafka
 
-volumes:
-  kafka_data: {}
+  orders-service:
+    image: orders-service:1.0.0
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_PARTITIONS: 6
+      APP_KAFKA_CONCURRENCY: 6
+      JAVA_OPTS: "-Xms256m -Xmx256m"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
 
+  payment-service:
+    image: payment-service:1.0.0
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_CONCURRENCY: 6
+      APP_TOPIC_IN: new_orders
+      APP_TOPIC_OUT: payed_orders
+      JAVA_OPTS: "-Xms256m -Xmx256m"
+    ports:
+      - "8082:8082"
+    depends_on:
+      - kafka
+
+  shipping-service:
+    image: shipping-service:1.0.0
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_CONCURRENCY: 6
+      APP_TOPIC_IN: payed_orders
+      APP_TOPIC_OUT: sent_orders
+      JAVA_OPTS: "-Xms256m -Xmx256m"
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+
+  notifications-service:
+    image: notifications-service:1.0.0
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_CONCURRENCY: 6
+      APP_TOPIC_IN: sent_orders
+      JAVA_OPTS: "-Xms256m -Xmx256m"
+    ports:
+      - "8084:8084"
+    depends_on:
+      - kafka

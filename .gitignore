@@ -1,4 +1,4 @@
-HELP.md
+Читать.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
